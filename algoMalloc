@@ -1,0 +1,27 @@
+malloc(n)
+{
+    nbbloc= 1 + n divisé par 16 et on fait + 1 si n%16 est différent de 0
+    chercher 1 bloc libre à partir de freelist
+        => for(cur= ; ;cur=cur->suiv)
+            {
+                si taille ok -> decoupage
+                si je boucle
+                    Allocation(--------) (et l'allocation fait free pour placer les nouveaux blocs obtenus dans la liste des blocs libre)
+            }
+    pointeur intéressant
+    mise à jour des chainages
+    prec->suivant = p+nbblocs
+    (p+nbblocs)->taille = p->taille-nbbloc
+    (p+nbblocs)->suivant= p->suivant
+    return p+1 //car p il y a 1 bloc de header, puis les blocs données. On renvoie les données donc p+1
+}
+
+free(void *ptr)
+{
+    Header *= (Header *)ptr-1
+    parcourir les blocs libre en conservant l'actuel et le précédent, dès qu'on a une adresse > à celle du bloc qu'on veut libérer, on l'intercalle entre le précédent et celui là :
+                                    -p->suiv = prec->suiv
+                                    -prev->suiv = p
+                                    voir si on peut assembler le précédent et le suivant (donc si prev+tailledeprev == p ou suiv == p+tailledep)
+
+}
