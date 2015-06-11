@@ -7,10 +7,11 @@
 /***    CONSTANTES    ***/
 /************************/
 #define MOST_RESTRICTING_TYPE double // Type le plus contraignant
-#define HEADER_SIZE sizeof(union header)
+#define HEADER_SIZE sizeof(Header)
 
 #define MIN_BLOCK_SIZE 8
-#define FIRST_BLOCK 800
+#define BLOCK 400
+
 
 typedef union header { // Header du bloc
     struct {
@@ -32,11 +33,11 @@ static int nb_sbrk    = 0;
 /***    DEBUGGER    ***/
 /**********************/
 void printDebug() {
-    printf("\nDEBUT DEBUG\n");
+    printf("\n++DEBUG++\n");
     // on print tout !
     for (Header iBlock = base; iBlock; iBlock = iBlock->info.next)
-        printf("Block %d (%d) => next %d\n", iBlock, iBlock->info.size, iBlock->info.next);
-    printf("FIN DEBUG\n\n");
+        printf("Block %p (%d) => next %p\n", iBlock, iBlock->info.size, iBlock->info.next);
+    printf("--DEBUG--\n\n");
 }
 
 /*********************/
@@ -51,11 +52,14 @@ Header getHeader(void *ptr) {
     return (ptr = tmp -= HEADER_SIZE);
 }
 
+size_t getAlign(size_t size) {
+	return (((size-1)>>3)<<3)+8;
+}
 /*
  * Recupère le pointeur sur le block
  */
 int getPtr(Header block) {
-    int adr = block;
+    int adr = block; // ICI
     adr += HEADER_SIZE;
     return adr;
 }
@@ -68,21 +72,20 @@ int getPtr(Header block) {
 /**
  * On étend de size à partir de last
  */
-Header extendHeap(Header last, size_t size) {
-    nb_sbrk;
+Header extendMem(Header last, size_t size) {
+    nb_sbrk++;
     Header newBlock;
+    // récupère le dernier break
     newBlock = sbrk(0);
     // si on a plus de place
     if (sbrk(HEADER_SIZE + size) == (void*)-1) return NULL;
     //sinon
     newBlock->info.size = size;
     newBlock->info.next = NULL;
-
     if (last)
         last->info.next = newBlock;
     else
-        base = newBlock;
-    
+        base = newBlock; 
     return newBlock;
 }
 
@@ -91,13 +94,10 @@ Header extendHeap(Header last, size_t size) {
  */
  
 Header findBlock(Header *last, size_t size) {
-    Header iBlock = base;
-    while (iBlock && (iBlock->info.size < size)) {
-        *last = iBlock;
-        iBlock = iBlock->info.next;
-    }
-
-    return iBlock;
+    Header Block;
+    for (Block = base; Block && (Block->info.size < size); Block = Block->info.next)
+        *last = Block;
+    return Block;
 }
 
 /**
@@ -159,17 +159,17 @@ void merge(Header block) {
  * 3. Si non trouvé, sbrk la mémoire
  */
 void *mymalloc(size_t size) {
-    nb_alloc += 1;
-    if (!base) { 
-        extendHeap(NULL, FIRST_BLOCK);
+    nb_alloc++;
+    if (base == NULL) { 
+        extendMem(NULL, BLOCK);
     }
     Header new, last;
-    size_t alignedSize = align8(size);
+    size_t alignedSize = getAlign(size);
     if (base) {
         new = findBlock(&last, alignedSize);
         if (!new) {
             // On a pas de bon bloc, on sbrk
-            new = extendHeap(last, FIRST_BLOCK);
+            new = extendMem(last, BLOCK);
             if (!new) return NULL;
         }      
         if ((new->info.size - alignedSize) >= (HEADER_SIZE + MIN_BLOCK_SIZE))
@@ -226,7 +226,7 @@ void *mycalloc(size_t nmemb, size_t size) {
     if (nmemb == 0 || 0 == size) return NULL;
 
     size_t i, alignedSize;
-    alignedSize = align8(nmemb*size);
+    alignedSize = getAlign(nmemb*size);
     void *newData = mymalloc(alignedSize);
     if (newData)
         bzero(newData, alignedSize);
@@ -245,7 +245,7 @@ void *mycalloc(size_t nmemb, size_t size) {
  */
 void *myrealloc(void *ptr, size_t size) {
     nb_alloc += 1;
-    size_t alignedSize = align8(size);
+    size_t alignedSize = getAlign(size);
 
     if (ptr) {
         Header oldBlock = getHeader(ptr);
