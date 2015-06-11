@@ -108,7 +108,6 @@ void splitBlock(Header block, size_t size) {
     Header secondBlock = getPtr(block) + size;
     secondBlock->info.size = (block->info.size - HEADER_SIZE - size);
     secondBlock->info.next = block->info.next;
-
     block->info.size = size;
     block->info.next = secondBlock;
 }
@@ -129,7 +128,6 @@ void removeBlock(Header block) {
 
 /**
  * Fusionne le bloc en paramètre avec le suivant si possible
- * @param block Bloc courant
  */
 void merge(Header block) {
     Header nextBlock = block->info.next;
@@ -152,8 +150,6 @@ void merge(Header block) {
 
 /**
  * A first fit malloc
- * @see malloc(3)
- *
  * 1. Recherche un bloc libre assez grand
  * 2. Si trouvé, split le bloc et renvoie juste un bloc de taille size
  * 3. Si non trouvé, sbrk la mémoire
@@ -180,8 +176,6 @@ void *mymalloc(size_t size) {
 }
 
 /**
- * @see free(3)
- *
  * 1. Remet le bloc dans la liste des blocs libres
  * 2. S'il est contigu => fusion
  */
@@ -215,8 +209,6 @@ void myfree(void *ptr) {
 }
 
 /**
- * @see calloc(3)
- *
  * 1. Alloue un nouveau bloc de nb*size
  * 2. init à 0
  * @TODO le init à 0, casse la size..
@@ -230,15 +222,10 @@ void *mycalloc(size_t nmemb, size_t size) {
     void *newData = mymalloc(alignedSize);
     if (newData)
         bzero(newData, alignedSize);
-
-    // Header newBlock = getHeader(newData);
-    // printf("mycalloc %d, size=%d, next=%d, data=%d\n", newBlock, newBlock->info.size, newBlock->info.next, *(newBlock+HEADER_SIZE+2));
     return newData;
 }
 
 /**
- * @see realloc(3)
- *
  * 1. Alloue un nouveau bloc de size
  * 2. Copie les données de l'ancien vers les nouveau bloc
  * 3. Free l'ancien bloc
@@ -246,18 +233,15 @@ void *mycalloc(size_t nmemb, size_t size) {
 void *myrealloc(void *ptr, size_t size) {
     nb_alloc += 1;
     size_t alignedSize = getAlign(size);
-
-    if (ptr) {
-        Header oldBlock = getHeader(ptr);
-        if (alignedSize > oldBlock->info.size) { // Si le ptr != NULL et nouvelle taille > oldSize => 
-        		                                   // malloc et PAS d'initialisation
-            unsigned int oldSize = oldBlock->info.size;
+    if (ptr != NULL) {
+        Header firstBlock = getHeader(ptr);
+        if (alignedSize > firstBlock->info.size) {
+            size_t oldSize = oldBlock->info.size;
             myfree(ptr);
             void *newData = mymalloc(alignedSize);
             memcpy(newData, ptr, oldSize);
-
             return newData;
-        } else { // Taille voulu <= à la précédente
+        } else {
             return ptr;
         }
         if (alignedSize == 0) {
@@ -265,23 +249,16 @@ void *myrealloc(void *ptr, size_t size) {
             return NULL;
         }
     } else {
-        return mymalloc(alignedSize); // Si ptr == null => malloc
+        return mymalloc(alignedSize);
     }
 }
 
 void mymalloc_infos(char *str)
 {
     if (str) fprintf(stderr, "**********\n*** %s\n", str);
-
-    fprintf(stderr, "# allocs = %3d - # deallocs = %3d - # sbrk = %3d\n",
-        nb_alloc, nb_dealloc, nb_sbrk);
-    /* Ca pourrait être pas mal d'afficher ici les blocs dans la liste libre */
+    fprintf(stderr, "# allocs = %3d - # deallocs = %3d - # sbrk = %3d\n",nb_alloc, nb_dealloc, nb_sbrk);
     if (base)
-    {
         for (Header iBlock = base; iBlock; iBlock = iBlock->info.next)
-        {
             fprintf(stderr, "Block %d (size=%d, next %d)\n", iBlock, iBlock->info.size, iBlock->info.next);
-        }
-    }
 }
 
