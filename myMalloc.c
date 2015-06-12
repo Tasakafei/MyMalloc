@@ -43,9 +43,8 @@ void printDebug() {
 /*********************/
 /***    GETTERS    ***/
 /*********************/
-/*
- * Récupère le block du pointeur
- */
+
+// Récupération du block du pointeur
 Header getHeader(void *ptr) {
     char *tmp;
     tmp = ptr;
@@ -55,9 +54,8 @@ Header getHeader(void *ptr) {
 size_t getAlign(size_t size) {
 	return (((size-1)>>3)<<3)+8;
 }
-/*
- * Recupère le pointeur sur le block
- */
+
+// Récupération d'un pointeur sur le block
 int getPtr(Header block) {
     int adr = block; // ICI
     adr += HEADER_SIZE;
@@ -69,99 +67,103 @@ int getPtr(Header block) {
 /***********************/
 
 
-/**
- * On étend de size à partir de last
- */
+// Ajoute d'un espace mémoire de taille size à partir de last.
+// Retourne NULL si erreur sinon retourne le Header du nouveau block.
 Header extendMem(Header last, size_t size) {
     nb_sbrk++;
     Header newBlock;
-    // récupère le dernier break
-    newBlock = sbrk(0);
-    // si on a plus de place
-    if (sbrk(HEADER_SIZE + size) == (void*)-1) return NULL;
-    //sinon
+    // récupération du dernier break
+    newBlock = sbrk(0);                             // On peut peut etre remplacer ces trois lignes par :
+    // si le sbrk n'a pas marché, on retourne NULL  // if ((newBlock = sbrk(HEADER_SIZE + size)) == (void*)-1)
+    if (sbrk(HEADER_SIZE + size) == (void*)-1)      //      return NULL;
+        return NULL;                                // Mais je suis pas sur..
+    // On met les infos du newBlock à jour
     newBlock->info.size = size;
     newBlock->info.next = NULL;
+    // Si last n'est pas NULL alors on le lie à ce nouveau bloc
     if (last)
-        last->info.next = newBlock;
+        last->info.next = newBlock; // Y faut pas du coup faire un merge avec last et newBlock ?
+    // Sinon ce nouveau block deviens la base
     else
-        base = newBlock; 
+        base = newBlock;
     return newBlock;
 }
 
-/*
- * Recherche un bloc libre d'une taille minimum size
- */
- 
+
+ // Recherche d'un block libre ayant une taille supérieure ou égale à size
 Header findBlock(Header *last, size_t size) {
     Header Block;
+    // On parcours tous les blocs à la recherche d'un bloc de taille suffisante
     for (Block = base; Block && (Block->info.size < size); Block = Block->info.next)
         *last = Block;
     return Block;
 }
 
-/**
- * Coupe le bloc en 2 afin de créer un bloc libre
- */
+ // Découpage d'un bloc en deux pour en crée un nouveau bloc libre de taille size
 void splitBlock(Header block, size_t size) {
-    // Création du bloc libre
+    // Création du Header du nouveau bloc
     Header secondBlock = getPtr(block) + size;
+    // Ajout des informations dans le Header de ce nouveau bloc
     secondBlock->info.size = (block->info.size - HEADER_SIZE - size);
     secondBlock->info.next = block->info.next;
+    // Mise à jour des informations de l'ancien Header du bloc coupé
     block->info.size = size;
     block->info.next = secondBlock;
 }
 
-/**
- * Supprime le bloc de la liste des blocs libres
- */
+ // Suppression d'un bloc
 void removeBlock(Header block) {
+    // Si le bloc est la base, on le remplace par la bloc suivant.
+    // Si aucun bloc le succède, on le remplace par NULL
     if (block == base) {
         base = (block->info.next) ? block->info.next : NULL;
-    } else if (base) {
+    }
+    else if (base) {
         Header iBlock = base;
+        // On parrcours les blocs afin de trouver le bloc précédant le bloc recherché
         while (iBlock->info.next && iBlock->info.next != block)
             iBlock = iBlock->info.next;
         iBlock->info.next = (iBlock->info.next) ? iBlock->info.next->info.next : NULL;
     }
 }
 
-/**
- * Fusionne le bloc en paramètre avec le suivant si possible
- */
+ // Fusion d'un bloc avec son suivant
 void merge(Header block) {
+    // Récupération du Header du bloc suivant
     Header nextBlock = block->info.next;
+    // Si il n'est pas NULL on fusionne les deux blocs
     if (nextBlock) {
         // printf("\nBefore merge %d, size=%d, next=%d", block, block->info.size, block->info.next);
         // printf("\nBefore merge %d, size=%d, next=%d\n", nextBlock, nextBlock->info.size, nextBlock->info.next);
-        if ((getPtr(block) + block->info.size) == nextBlock) {
-            block->info.size += (HEADER_SIZE + nextBlock->info.size);
-            block->info.next = nextBlock->info.next;
 
-            // "Supprime" le block fusionné
-            nextBlock->info.size = 0;
-            nextBlock->info.next = NULL;
+        // Test si les deux blocs se suivent, si oui on peut les fusionner sinon non.
+        if ((getPtr(block) + block->info.size) == nextBlock) {
+            // Mise à jour des informations du premier bloc
+            block->info.size += (HEADER_SIZE + nextBlock->info.size); // Rajout au premier la taille du second bloc
+            block->info.next = nextBlock->info.next; // Liaison avec le premier et le bloc suivant le deuxième bloc
+
+            // Suppresion du deuxième block
+            nextBlock->info.size = 0;    // Y'a vraiment besoin de faire ces deux ligne ?
+            nextBlock->info.next = NULL; // Ou pas ? ^^
         }
         // printf("After merge %d, size=%d, next=%d\n", block, block->info.size, block->info.next);
         // printf("After merge %d, size=%d, next=%d\n\n", nextBlock, nextBlock->info.size, nextBlock->info.next);
     }
 }
-////////////////
 
-/**
- * A first fit malloc
- * 1. Recherche un bloc libre assez grand
- * 2. Si trouvé, split le bloc et renvoie juste un bloc de taille size
- * 3. Si non trouvé, sbrk la mémoire
- */
-void *mymalloc(size_t size) {
+ // Recherche d'un bloc libre de taille suffisante. Si on en trouve un qui convient
+ // on le découpe et on lui renvoie un bloc de taille size.
+ // Sinon, on rajoute de la mémoire
+void *mymalloc(size_t size) { // Peut-etre besoin d'une bloc dans cette fonction
     nb_alloc++;
+    // Si il n'y a aucun bloc de libre, on ajoute de la mémoire
     if (base == NULL) { 
         extendMem(NULL, BLOCK);
     }
     Header new, last;
     size_t alignedSize = getAlign(size);
     if (base) {
+        // Recherche d'un bloc libre de taille suffisante
         new = findBlock(&last, alignedSize);
         if (!new) {
             // On a pas de bon bloc, on sbrk
@@ -175,35 +177,39 @@ void *mymalloc(size_t size) {
     return getPtr(new);
 }
 
-/**
- * 1. Remet le bloc dans la liste des blocs libres
- * 2. S'il est contigu => fusion
- */
+ // Remise du bloc dans la liste des blocs libre. Si il est collé au
+ // bloc précédent (ou suivant) on les fusionnes
 void myfree(void *ptr) {
     nb_dealloc += 1;
     Header ptrBlock = getHeader(ptr);
+    // Si la liste est vide, la base deviens ce bloc
     if (!base) {
         base = ptrBlock;
-    } else {
+    }
+    else {
+        // Si ce bloc est avant la base, la base deviens ce bloc
         if (ptrBlock < base) {
+            // Rajout des information de ce nouveau bloc
             ptrBlock->info.next = base;
             base = ptrBlock;
-            // Vérifie s'il est contigu
-            merge(base); // Avec le suivant
+            // Fusion du bloc avec le suivant si necessaire
+            merge(base);
         } else {
 		    Header iBlock = base;
+            // Parcours de tous les bloc libre à la recherche
+            //du bloc précédant le bloc que l'on veut liberer
 		    while (iBlock->info.next && iBlock->info.next < ptrBlock) {
 		        iBlock = iBlock->info.next;
 		    }
 
 		    if (ptrBlock->info.size != 0) {
-		        // Remet le bloc dans la liste
+		        // Remise du bloc dans la liste des blocs libres
 		        ptrBlock->info.next = iBlock->info.next;
 		        iBlock->info.next = ptrBlock;
 		    }
-		    // Vérifie s'il est contigu
-		    merge(ptrBlock); // Avec le suivant
-		    merge(iBlock); // Avec le précédent
+		    // Fusion de ce nouveau bloc libre avec le suivant et le précédent si necessaire
+		    merge(ptrBlock);
+		    merge(iBlock);
         }
     }
 }

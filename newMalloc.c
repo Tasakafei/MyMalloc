@@ -12,12 +12,12 @@
 #define MIN_BLOCK_SIZE 8
 #define FIRST_BLOCK 800
 
-typedef union header { // Header du bloc
+typedef union header { /*Header du bloc*/
     struct {
-        unsigned int size;  // Taille du bloc
-        union header *next; // Bloc libre suivant
+        unsigned int size;  /* Taille du bloc*/
+        union header *next; /* Bloc libre suivant*/
     } info;
-    MOST_RESTRICTING_TYPE dummy; // Ne sert qu'à provoquer un alignement
+    MOST_RESTRICTING_TYPE dummy; /*Ne sert qu'à provoquer un alignement*/
 } *Header;
 
 /**************************/
