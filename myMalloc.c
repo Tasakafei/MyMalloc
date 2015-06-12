@@ -209,28 +209,23 @@ void myfree(void *ptr) {
     }
 }
 
-/**
- * 1. Alloue un nouveau bloc de nb*size
- * 2. init à 0
- * @TODO le init à 0, casse la size..
- */
+ // Allocation d'un nouveau bloc de taille (nmemb*size), puis initialisation de ce nouveau bloc à 0
 void *mycalloc(size_t nmemb, size_t size) {
     nb_alloc++;
+    // Test des paramètres
     if (nmemb == 0 || 0 == size) return NULL;
 
     size_t i, alignedSize;
     alignedSize = getAlign(nmemb*size);
     void *newData = mymalloc(alignedSize);
+    // Initialisation du bloc à 0 si différent de NULL
     if (newData)
         bzero(newData, alignedSize);
     return newData;
 }
 
-/**
- * 1. Alloue un nouveau bloc de size
- * 2. Copie les données de l'ancien vers les nouveau bloc
- * 3. Free l'ancien bloc
- */
+ // Allocation d'un nouveau bloc de taille size, copie de l'ancien bloc dans ce nouveau.
+ // Puis on libère l'ancien bloc
 void *myrealloc(void *ptr, size_t size) {
     nb_alloc++;
     size_t alignedSize = getAlign(size);
