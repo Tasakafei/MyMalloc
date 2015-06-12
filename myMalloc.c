@@ -133,9 +133,6 @@ void merge(Header block) {
     Header nextBlock = block->info.next;
     // Si il n'est pas NULL on fusionne les deux blocs
     if (nextBlock) {
-        // printf("\nBefore merge %d, size=%d, next=%d", block, block->info.size, block->info.next);
-        // printf("\nBefore merge %d, size=%d, next=%d\n", nextBlock, nextBlock->info.size, nextBlock->info.next);
-
         // Test si les deux blocs se suivent, si oui on peut les fusionner sinon non.
         if ((getPtr(block) + block->info.size) == nextBlock) {
             // Mise à jour des informations du premier bloc
@@ -146,8 +143,6 @@ void merge(Header block) {
             nextBlock->info.size = 0;    // Y'a vraiment besoin de faire ces deux ligne ?
             nextBlock->info.next = NULL; // Ou pas ? ^^
         }
-        // printf("After merge %d, size=%d, next=%d\n", block, block->info.size, block->info.next);
-        // printf("After merge %d, size=%d, next=%d\n\n", nextBlock, nextBlock->info.size, nextBlock->info.next);
     }
 }
 
@@ -220,7 +215,7 @@ void myfree(void *ptr) {
  * @TODO le init à 0, casse la size..
  */
 void *mycalloc(size_t nmemb, size_t size) {
-    nb_alloc += 1;
+    nb_alloc++;
     if (nmemb == 0 || 0 == size) return NULL;
 
     size_t i, alignedSize;
@@ -237,12 +232,12 @@ void *mycalloc(size_t nmemb, size_t size) {
  * 3. Free l'ancien bloc
  */
 void *myrealloc(void *ptr, size_t size) {
-    nb_alloc += 1;
+    nb_alloc++;
     size_t alignedSize = getAlign(size);
     if (ptr != NULL) {
         Header firstBlock = getHeader(ptr);
         if (alignedSize > firstBlock->info.size) {
-            size_t oldSize = oldBlock->info.size;
+            size_t oldSize = firstBlock->info.size;
             myfree(ptr);
             void *newData = mymalloc(alignedSize);
             memcpy(newData, ptr, oldSize);
@@ -261,10 +256,10 @@ void *myrealloc(void *ptr, size_t size) {
 
 void mymalloc_infos(char *str)
 {
-    if (str) fprintf(stderr, "**********\n*** %s\n", str);
+     if (str) fprintf(stderr, "**********\n*** %s\n", str);
     fprintf(stderr, "# allocs = %3d - # deallocs = %3d - # sbrk = %3d\n",nb_alloc, nb_dealloc, nb_sbrk);
     if (base)
         for (Header iBlock = base; iBlock; iBlock = iBlock->info.next)
-            fprintf(stderr, "Block %d (size=%d, next %d)\n", iBlock, iBlock->info.size, iBlock->info.next);
+            fprintf(stderr, "\tBlock @ 0x%X (size=\t%d,\t next 0x%X)\n", iBlock, iBlock->info.size / MIN_BLOCK_SIZE, iBlock->info.next);
 }
 
